@@ -23,7 +23,7 @@ wordnum=0
 for line in file1:
     line = line.split()
     if context==True and line[0] != "target:":
-        print line[0]
+        print(line[0])
         columnss.append("".join(w for w in line[:]))
     elif line[0]=="target:":
         context=False
