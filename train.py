@@ -8,12 +8,12 @@ https://www.github.com/kyubyong/transformer
 '''
 from __future__ import print_function
 import sys  
-reload(sys)  
-sys.setdefaultencoding('utf8')   
+# reload(sys)
+# sys.setdefaultencoding('utf8')
 import tensorflow as tf
 
 from hyperparams import Hyperparams as hp
-from data_load import get_batch_data, load_de_vocab, load_en_vocab, load_dev_data
+from data_load import get_batch_data, load_en_vocab, load_dev_data
 from modules import *
 import os, codecs
 from tqdm import tqdm
@@ -36,15 +36,15 @@ class Graph():
             self.decoder_inputs = tf.concat((tf.ones_like(self.y[:, :1])*2, self.y[:, :-1]), -1) # 2:<S>
 
             # Load vocabulary    
-            de2idx, idx2de = load_de_vocab()
-            en2idx, idx2en = load_en_vocab()
+            # de2idx, idx2de = load_de_vocab()
+            en2idx, idx2en = load_en_vocab(hp.voc_dir)
             
             # Encoder
             with tf.variable_scope("encoder"):
                 ## Embedding
                 embeddingsize = hp.hidden_units/2
                 self.enc_embed = embedding(tf.reshape(self.x,[-1,hp.maxlen]), 
-                                      vocab_size=len(de2idx), 
+                                      vocab_size=len(en2idx),
                                       num_units=embeddingsize, 
                                       scale=True,
                                       scope="enc_embed")
@@ -168,86 +168,91 @@ class Graph():
                 tf.summary.scalar('mean_loss', self.mean_loss)
                 self.merged = tf.summary.merge_all()
 
-if __name__ == '__main__':                
-    # Load vocabulary    
-    de2idx, idx2de = load_de_vocab()
-    en2idx, idx2en = load_en_vocab()
-    
-    # Construct graph
-    g = Graph("train"); print("Graph loaded")
-    X,X_length,Y, Sources, Targets = load_dev_data()
-    # Start session
-    sv = tf.train.Supervisor(graph=g.graph, 
-                             logdir=hp.logdir,
-                             save_model_secs=0)
-    #preEpoch= 
-    tfconfig = tf.ConfigProto()
-    tfconfig.gpu_options.allow_growth = True
-    with sv.managed_session(config = tfconfig) as sess:
-        early_break = 0
-        old_eval_loss=10000
-        for epoch in range(1, hp.num_epochs+1): 
-            if sv.should_stop(): break
-            loss=[]
-            
-            if early_break >=4:
-                break
-            for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
-                _,loss_step,attns,sources,targets = sess.run([g.train_op,g.mean_loss,g.attn,g.source,g.target])
-                loss.append(loss_step)
-                
-                if step%2000==0:
-                    gs = sess.run(g.global_step)
-                    print("train loss:%.5lf\n"%(np.mean(loss)))
-                    sv.saver.save(sess, hp.logdir + '/model_epoch_%02d_gs_%d' % (epoch, gs))
+if __name__=='__main__':
+    #load vocabulary
+    en2idx, idx2en = load_en_vocab(hp.voc_dir)
 
-                    mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1]
-                    fout = codecs.open( mname, "w","utf-8")
-                    eval_loss=[]
-                    bleu=[]
-                  
-                    for i in range(len(X) // hp.batch_size):
-                       ### Get mini-batches
-                       x = X[i*hp.batch_size: (i+1)*hp.batch_size]
-                       x_length=X_length[i*hp.batch_size: (i+1)*hp.batch_size]
-                       y = Y[i*hp.batch_size: (i+1)*hp.batch_size]
-                       sources = Sources[i*hp.batch_size: (i+1)*hp.batch_size]
-                       targets = Targets[i*hp.batch_size: (i+1)*hp.batch_size]
-                       eval_bath = sess.run(g.mean_loss, {g.x: x,g.x_length:x_length,g.y: y})
-                       eval_loss.append( eval_bath)
-                       
-                       preds = np.zeros((hp.batch_size, hp.maxlen), np.int32)
-                       for j in range(hp.maxlen):
-                           _preds = sess.run(g.preds, {g.x: x,g.x_length:x_length, g.y: preds})
-                           preds[:, j] = _preds[:, j]
-
-                    
-                    
-                       ### Write to file
-                       list_of_refs, hypotheses = [], []
-                       for source, target, pred in zip(sources, targets, preds): # sentence-wise
-                           got = " ".join(idx2en[idx] for idx in pred).split("</S>")[0].strip()
-                           fout.write("- source: " + source +"\n")
-                           fout.write("- expected: " + target + "\n")
-                           fout.write("- got: " + got + "\n\n")
-                           fout.flush()
-                           # bleu score
-                           ref = got.split()
-                           hypothesis = target.split()
-                           score = nltk.translate.bleu_score.sentence_bleu([hypothesis],ref,(0.25, 0.25, 0.25, 0.25),nltk.translate.bleu_score.SmoothingFunction().method1)
-                           bleu.append(score)
-                    fout.write("train loss = %.5lf\teval loss = %.5lf\tBleu Score = %.5lf\n" %(np.mean(loss),np.mean(eval_loss),100*np.mean(bleu)))
-                    print("eval loss:%.5lf"%(np.mean(eval_loss)))
-                    print("Bleu Score:%.5lf"%(100*np.mean(bleu)))
-                    if np.mean(eval_loss) > old_eval_loss:
-                        early_break +=1
-                    else:
-                        early_break = 0
-                    old_eval_loss=np.mean(eval_loss)
-                    if early_break>=4:
-                        break
-                    #attention analysis
-                    break
-    print("Done")    
-    
-
+# if __name__ == '__main__':
+#     # Load vocabulary
+#     # de2idx, idx2de = load_de_vocab()
+#     en2idx, idx2en = load_en_vocab('/home/yueying/pycharm_workspace/Recose/preprocessed/train.vocab.tsv')
+#
+#     # Construct graph
+#     g = Graph("train")
+#     print("Graph loaded")
+#     X,X_length,Y, Sources, Targets = load_dev_data()
+#     # Start session
+#     sv = tf.train.Supervisor(graph=g.graph,
+#                              logdir=hp.logdir,
+#                              save_model_secs=0)
+#     #preEpoch=
+#     tfconfig = tf.ConfigProto()
+#     tfconfig.gpu_options.allow_growth = True
+#     with sv.managed_session(config = tfconfig) as sess:
+#         early_break = 0
+#         old_eval_loss=10000
+#         for epoch in range(1, hp.num_epochs+1):
+#             if sv.should_stop(): break
+#             loss=[]
+#
+#             if early_break >=4:
+#                 break
+#             for step in tqdm(range(g.num_batch), total=g.num_batch, ncols=70, leave=False, unit='b'):
+#                 _,loss_step,attns,sources,targets = sess.run([g.train_op,g.mean_loss,g.attn,g.source,g.target])
+#                 loss.append(loss_step)
+#
+#                 if step%2==0:
+#                     gs = sess.run(g.global_step)
+#                     print("train loss:%.5lf\n"%(np.mean(loss)))
+#                     sv.saver.save(sess, hp.logdir + '/model_epoch_%02d_gs_%d' % (epoch, gs))
+#
+#                     mname = open(hp.logdir + '/checkpoint', 'r').read().split('"')[1]
+#                     fout = codecs.open( mname, "w","utf-8")
+#                     eval_loss=[]
+#                     bleu=[]
+#
+#                     for i in range(len(X) // hp.batch_size):
+#                        ### Get mini-batches
+#                        x = X[i*hp.batch_size: (i+1)*hp.batch_size]
+#                        x_length=X_length[i*hp.batch_size: (i+1)*hp.batch_size]
+#                        y = Y[i*hp.batch_size: (i+1)*hp.batch_size]
+#                        sources = Sources[i*hp.batch_size: (i+1)*hp.batch_size]
+#                        targets = Targets[i*hp.batch_size: (i+1)*hp.batch_size]
+#                        eval_bath = sess.run(g.mean_loss, {g.x: x,g.x_length:x_length,g.y: y})
+#                        eval_loss.append( eval_bath)
+#
+#                        preds = np.zeros((hp.batch_size, hp.maxlen), np.int32)
+#                        for j in range(hp.maxlen):
+#                            _preds = sess.run(g.preds, {g.x: x,g.x_length:x_length, g.y: preds})
+#                            preds[:, j] = _preds[:, j]
+#
+#
+#
+#                        ### Write to file
+#                        list_of_refs, hypotheses = [], []
+#                        for source, target, pred in zip(sources, targets, preds): # sentence-wise
+#                            got = " ".join(idx2en[idx] for idx in pred).split("</S>")[0].strip()
+#                            fout.write("- source: " + source +"\n")
+#                            fout.write("- expected: " + target + "\n")
+#                            fout.write("- got: " + got + "\n\n")
+#                            fout.flush()
+#                            # bleu score
+#                            ref = got.split()
+#                            hypothesis = target.split()
+#                            score = nltk.translate.bleu_score.sentence_bleu([hypothesis],ref,(0.25, 0.25, 0.25, 0.25),nltk.translate.bleu_score.SmoothingFunction().method1)
+#                            bleu.append(score)
+#                     fout.write("train loss = %.5lf\teval loss = %.5lf\tBleu Score = %.5lf\n" %(np.mean(loss),np.mean(eval_loss),100*np.mean(bleu)))
+#                     print("eval loss:%.5lf"%(np.mean(eval_loss)))
+#                     print("Bleu Score:%.5lf"%(100*np.mean(bleu)))
+#                     if np.mean(eval_loss) > old_eval_loss:
+#                         early_break +=1
+#                     else:
+#                         early_break = 0
+#                     old_eval_loss=np.mean(eval_loss)
+#                     if early_break>=4:
+#                         break
+#                     #attention analysis
+#                     break
+#     print("Done")
+#
+#

@@ -8,14 +8,22 @@ https://www.github.com/kyubyong/transformer
 class Hyperparams:
     '''Hyperparameters'''
     # data
-    source_train = 'corpora/JD.train.query'
-    target_train = 'corpora/JD.train.answer'
-    source_test = 'corpora/JD.test.query'
-    target_test = 'corpora/JD.test.answer'
-    source_dev = 'corpora/JD.dev.query'
-    target_dev = 'corpora/JD.dev.answer' 
+    # source_train = 'corpora/JD.train.query'
+    # target_train = 'corpora/JD.train.answer'
+    # source_test = 'corpora/JD.test.query'
+    # target_test = 'corpora/JD.test.answer'
+    # source_dev = 'corpora/JD.dev.query'
+    # target_dev = 'corpora/JD.dev.answer'
+    data_dir = "/home/yueying/pycharm_workspace/Recose/ubuntu"
+
+    train_set='/home/yueying/pycharm_workspace/Recose/ubuntu/train.csv'
+    valid_set = '/home/yueying/pycharm_workspace/Recose/ubuntu/valid.csv'
+    test_set = '/home/yueying/pycharm_workspace/Recose/ubuntu/test.csv'
+
+    voc_dir='/home/yueying/pycharm_workspace/Recose/preprocessed/train.vocab.tsv'
+
     # training
-    batch_size = 32 # alias = N
+    batch_size = 2 # alias = N
     lr = 0.0001 # learning rate. In paper, learning rate is adjusted to the global step.
     logdir = 'JDlogdir1129' # log directory
     
